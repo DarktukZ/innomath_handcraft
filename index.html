@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>กลไกหกเหลี่ยมสองวงกลม</title>
+<style>
+:root{--bg:#fbfaf7;--fg:#222;--mut:#666;--card:#fff;--line:#d9d6cc;--acc:#2e86ab}
+@media (prefers-color-scheme:dark){:root{--bg:#1b1c1e;--fg:#eee;--mut:#aaa;--card:#26282b;--line:#3b3e43}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 -apple-system,"Sarabun","Noto Sans Thai",sans-serif}
+main{max-width:900px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:1.4rem;margin:0 0 4px}
+h2{font-size:1.15rem;margin:28px 0 8px}
+h3{font-size:1rem;margin:0 0 6px}
+.sub{color:var(--mut);margin:0 0 14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px}
+#view{position:relative;width:100%;height:min(62vh,520px);min-height:340px;border-radius:8px;overflow:hidden;background:#dfe7ec;touch-action:none;cursor:grab}
+#view canvas{display:block}
+#readout{position:absolute;left:10px;top:10px;background:#fffd;color:#222;padding:6px 10px;border-radius:8px;font-size:.85rem;line-height:1.5;pointer-events:none}
+.ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+.ctl button{padding:7px 12px;border:1px solid var(--acc);background:transparent;color:var(--fg);border-radius:8px;font:inherit;font-size:.92rem;cursor:pointer}
+.ctl button:hover,.ctl button.on{background:var(--acc);color:#fff}
+.ctl input[type=range]{flex:1 1 220px}
+.ctl label{font-size:.92rem}
+.legend[hidden]{display:none}
+.legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:4px 16px;font-size:.88rem;color:var(--mut);margin-top:6px}
+.sw{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.cap{padding:8px 12px;border-left:4px solid var(--acc);background:var(--bg);border-radius:4px}
+.warn{background:#fff4e5;color:#5a3a00;border-radius:8px;padding:8px 12px;font-size:.92rem}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+td,th{border:1px solid var(--line);padding:5px 8px;text-align:left;vertical-align:top}
+</style>
+</head>
+<body>
+<main>
+<h1>กลไกเปลี่ยนมุมหกเหลี่ยมเป็นวงกลม 2 วง</h1>
+<p class="sub">มุมภายในหกเหลี่ยมด้านเท่ามุมเท่า 6 มุมรวมกันได้ 120° × 6 = 720° = วงกลม 2 วง โดยมุมเว้นมุม 3 มุม (120° × 3 = 360°) ต่อกันได้ 1 วงพอดี หน้านี้จำลอง 5 วิธีแยกให้เห็นวงกลมทั้งสองวงเพื่อเลือกก่อนทำจริง</p>
+
+<div class="card">
+  <h3>ภาพจำลอง 3 มิติ</h3>
+  <div class="ctl" id="modes">
+    <button data-m="A">แบบ A · ยกวงบนขึ้น</button>
+    <button data-m="B">แบบ B · เลื่อนวงบนออกข้าง</button>
+    <button data-m="C">แบบ C · ยกถาดบนออกด้วยมือ</button>
+    <button data-m="D">แบบ D · วิ่งเข้า 2 จุดศูนย์กลาง</button>
+    <button data-m="E">แบบ E · สามเหลี่ยมกางหมุน</button>
+  </div>
+  <div id="view"><div id="readout"></div></div>
+  <div class="ctl">
+    <button id="go">▶ เล่นต่อ</button>
+    <button id="back">◀ ย้อนกลับ</button>
+    <input type="range" id="t" min="0" max="1000" value="0" aria-label="ขั้นของกลไก">
+  </div>
+  <div class="ctl">
+    <button data-v="iso">มุมเฉียง</button>
+    <button data-v="top">มองจากบน</button>
+    <button data-v="side">มองด้านข้าง (เห็นชั้น)</button>
+    <button data-v="under">มองใต้ถาด</button>
+  </div>
+  <p class="cap" id="cap"></p>
+  <div class="legend" id="legD">
+    <span><i class="sw" style="background:#2e86ab"></i>ชิ้นมุมทั้ง 6 ชิ้น (สีเดียวกัน)</span>
+    <span><i class="sw" style="background:#1b4f66"></i>ป้ายมุมที่ยอด (มุม 1–6)</span>
+    <span><i class="sw" style="background:#bbb"></i>หางชิ้นมุม (ใส)</span>
+    <span><i class="sw" style="background:#5a4630"></i>ช่องรางเจาะทะลุฐาน</span>
+    <span><i class="sw" style="background:#555"></i>ลายหกเหลี่ยมและวงกลมบนฐาน</span>
+    <span><i class="sw" style="background:#222"></i>หมุด · เชือก · แกนพัน · ข้อเหวี่ยง</span>
+    <span><i class="sw" style="background:#c0392b"></i>หนังยางดึงกลับ (ใต้ฐาน)</span>
+  </div>
+  <div class="legend" id="legE">
+    <span><i class="sw" style="background:#6a994e"></i>มุมที่จุดศูนย์กลางหกเหลี่ยม (ตอนเริ่ม)</span>
+    <span><i class="sw" style="background:#e4572e"></i>มุมแดง · วงที่ 1</span>
+    <span><i class="sw" style="background:#2e86ab"></i>มุมฟ้า · วงที่ 2</span>
+    <span><i class="sw" style="background:#f3efe4;border:1px solid #999"></i>ชิ้นสามเหลี่ยม · ฐาน</span>
+    <span><i class="sw" style="background:#5a4630"></i>ช่องรางเจาะทะลุฐาน</span>
+    <span><i class="sw" style="background:#b08d57"></i>วงเฟือง (ใต้ฐาน) · คันโยก</span>
+    <span><i class="sw" style="background:#8a9aa6"></i>จานร่องเฉียง (ใต้สุด) · คันโยก</span>
+    <span><i class="sw" style="background:#333"></i>แกนชิ้น · เฟืองเล็ก</span>
+  </div>
+  <div class="legend" id="legABC">
+    <span><i class="sw" style="background:#e4572e"></i>มุม 1 · ชุดวงที่ 1</span>
+    <span><i class="sw" style="background:#f2a541"></i>มุม 3 · ชุดวงที่ 1</span>
+    <span><i class="sw" style="background:#c9184a"></i>มุม 5 · ชุดวงที่ 1</span>
+    <span><i class="sw" style="background:#2e86ab"></i>มุม 2 · ชุดวงที่ 2</span>
+    <span><i class="sw" style="background:#6a994e"></i>มุม 4 · ชุดวงที่ 2</span>
+    <span><i class="sw" style="background:#7b5ea7"></i>มุม 6 · ชุดวงที่ 2</span>
+    <span><i class="sw" style="background:#8a6d4b"></i>ราง</span>
+    <span><i class="sw" style="background:#222"></i>เชือก · แกนพัน · ข้อเหวี่ยง</span>
+    <span><i class="sw" style="background:#c0392b"></i>หนังยางดึงกลับ</span>
+  </div>
+  <p class="sub" style="margin-top:8px">ลากเมาส์เพื่อหมุนมุมมอง · ลูกกลิ้งหรือบีบนิ้วเพื่อซูม</p>
+</div>
+
+<h2>เทียบ 5 แบบ</h2>
+<div class="card scroll">
+  <table>
+    <tr><th></th><th>A · ยกขึ้น</th><th>B · เลื่อนออกข้าง</th><th>C · ยกถาดด้วยมือ</th><th>D · วิ่งเข้า 2 จุดศูนย์กลาง</th><th>E · สามเหลี่ยมกางหมุน</th></tr>
+    <tr><th>มองจากบน</th><td>เห็นซ้อนเป็นวงเดียว</td><td>เห็น 2 วงเคียงกัน</td><td>เห็น 2 วงเคียงกัน</td><td>เห็นเป็นรูปเดียวสีฟ้า (2 วงต่อกันเนียน) ขอบเขตแต่ละวงดูจากลายพิมพ์บนฐานไม่ได้เพราะถูกบัง</td><td>เห็นทีละวงที่จุดกลาง: มุมแดง 6 มุมก่อน แล้วมุมฟ้า 6 มุม รูปนอกยังเป็นหกเหลี่ยม</td></tr>
+    <tr><th>มองจากข้าง</th><td>เห็น 2 ชั้นห่างกันชัด</td><td>เห็นสูงไม่เท่ากัน</td><td>เห็นสูงเท่ากัน</td><td>6 ชั้น ต่างกันสุด 15 มม.</td><td>ชั้นเดียว ชิ้นแบนวางบนฐาน</td></tr>
+    <tr><th>สิ่งที่ต้องควบคุม</th><td>ข้อเหวี่ยง 2 + ที่หมุนยก 1</td><td>ข้อเหวี่ยง 2 + ดันแคร่ 1</td><td>ข้อเหวี่ยง 2 + ยกด้วยมือ</td><td>ข้อเหวี่ยง 1 อันเดียว</td><td>คันโยก 2 อัน (กาง/หุบ · หมุน) ทำ 2 รอบ</td></tr>
+    <tr><th>ชิ้นส่วนที่เพิ่มจากถาด 2 ใบ</th><td>แกนเกลียว 3 ต้น + สายพาน</td><td>รางแคร่ 2 เส้น + เสา 4 ต้น + แคร่</td><td>ไม่มี</td><td>ไม่ใช้ถาด · ฐานเดียว + แกนพันขั้นบันได 2 ชุดบนแกนเดียว</td><td>ไม่ใช้ถาดและเชือก · จานร่องเฉียง + วงเฟือง 90 ฟัน + เฟืองเล็ก 12 ฟัน 6 อัน</td></tr>
+    <tr><th>พื้นที่บนโต๊ะ (ด้านหกเหลี่ยม 10 ซม.)</th><td>48 × 48 ซม. สูงราว 30 ซม.</td><td>84 × 54 ซม.</td><td>85 × 40 ซม.</td><td>ฐาน 44 × 48 ซม. (รวมข้อเหวี่ยงราว 52 × 48)</td><td>ฐาน 42 × 42 ซม. (รวมคันโยกราว 48 × 48) ชิ้นกางออกสุดยื่นถึง 18.8 ซม. จากกลาง</td></tr>
+    <tr><th>จุดเสี่ยงตอนทำจริง</th><td>ยกไม่เท่ากัน 3 ต้นแล้วเอียงหรือฝืด</td><td>แคร่บิดแล้วติดราง</td><td>วางถาดผิดรูเสียบ</td><td>แกนพันผิดสัดส่วนแล้วชิ้นถึงไม่พร้อมกัน · เชือก 6 เส้นใต้ฐานพันกัน</td><td>เฟืองตัดไม่แม่นแล้วขบไม่ลง · ชิ้นหมุนเองตอนหลุดจากวงเฟือง</td></tr>
+    <tr><th>นักเรียนลงมือ</th><td>หมุนอย่างเดียว</td><td>หมุน + ดัน</td><td>หมุน + ยกย้ายเอง</td><td>หมุนอย่างเดียว</td><td>โยก 2 คันสลับกัน 6 จังหวะ</td></tr>
+  </table>
+  <p class="sub" style="margin:10px 0 0">ขนาดทั้งหมดเป็นค่าที่คำนวณจากภาพจำลอง ยังไม่เคยทำต้นแบบจริง</p>
+</div>
+
+<h2>รายละเอียดแบบ D</h2>
+<div class="card">
+  <ol style="margin:0;padding-left:1.2em">
+    <li><b>จุดศูนย์กลาง 2 จุด ห่างกัน 10 ซม.:</b> จุดศูนย์กลางของแต่ละวงอยู่บนเส้นรอบวงของอีกวง มุม 1, 3, 5 วิ่งไปจุดขวา มุม 2, 4, 6 วิ่งไปจุดซ้าย</li>
+    <li><b>ระยะวิ่งไม่เท่ากัน:</b> มุม 1 และ 4 วิ่ง 5 ซม. อีก 4 ชิ้นวิ่ง 13.2 ซม. แกนพันใต้จุดศูนย์กลางแต่ละจุดจึงมี 2 ขนาด รัศมี 0.76 ซม. กับ 2 ซม. (5 : 13.2) หมุน 1.05 รอบ ทุกชิ้นก็ถึงพร้อมกัน</li>
+    <li><b>ช่องรางเจาะทะลุฐาน:</b> แต่ละชิ้นมีหมุด 2 ตัวห่างกัน 3 ซม. ลอดช่องลงไปใต้ฐาน เชือกกับหนังยางอยู่ใต้ฐานทั้งหมด ไม่ขวางชิ้นที่วิ่งอยู่ด้านบน หมุดชนปลายช่องจึงหยุดตรงจุดพอดีทั้งสองทาง</li>
+    <li><b>ลำดับชั้นจากล่างขึ้นบน:</b> มุม 1 · 3 · 4 · 5 · 2 · 6 (3 · 6 · 9 · 12 · 15 · 18 มม.) หมุดห่างยอดมุม 1 · 16 · 11 · 1 · 11 · 16 ซม. ตามลำดับมุม 1–6 คำนวณแล้วว่าหมุดของชิ้นชั้นบนไม่ผ่านชิ้นหรือหางของชั้นล่างตลอดทาง (เว้นระยะ 4 มม.)</li>
+    <li><b>ชิ้นมุมสีฟ้าทึบสีเดียวกันทั้ง 6 ชิ้น:</b> ตอนเป็นหกเหลี่ยมและตอนเป็นวงกลม ชิ้นที่ซ้อนกันจะกลืนเป็นรูปเดียว ไม่เห็นรอยต่อ ส่วนเลขมุม 1–6 ดูจากป้ายมุมสีเข้มที่ยอด</li>
+  </ol>
+  <p class="warn" style="margin:10px 0 0">ตัวเลขแบบ D มาจากการคำนวณในภาพจำลอง ยังไม่ได้ทำต้นแบบ และยังไม่ได้ตรวจว่าเชือก 6 เส้นใต้ฐานพันกันหรือไม่</p>
+</div>
+
+<h2>รายละเอียดแบบ E</h2>
+<div class="card">
+  <ol style="margin:0;padding-left:1.2em">
+    <li><b>ชิ้นงาน:</b> สามเหลี่ยมด้านเท่ายาวด้านละ 10 ซม. จำนวน 6 ชิ้น ทุกชิ้นระบายสีมุม 3 สี ได้แก่ มุมเขียวที่อยู่ตรงกลางหกเหลี่ยม มุมแดง และมุมฟ้า ที่ยอดหกเหลี่ยมแต่ละยอด มุมแดงของชิ้นหนึ่งต่อกับมุมฟ้าของชิ้นข้างๆ ได้ 60° + 60° = 120°</li>
+    <li><b>ทำไมต้องกางออกก่อนหมุน:</b> ถ้าหมุนชิ้นอยู่กับที่ ยอดของชิ้นจะกวาดไปชนชิ้นข้างๆ ต้องให้จุดกึ่งกลางชิ้นอยู่ห่างจุดกลางหกเหลี่ยมอย่างน้อย 11.6 ซม. แบบนี้ใช้ 13 ซม. คือกางออก 7.2 ซม. คำนวณแล้วว่าระหว่างหมุนชิ้นห่างกันอย่างน้อย 1.45 ซม.</li>
+    <li><b>จานร่องเฉียง (กาง/หุบ):</b> เป็นจานใต้สุด มีร่องโค้ง 6 ร่อง ปลายล่างของแกนแต่ละชิ้นเสียบอยู่ในร่อง เมื่อโยกจาน 60° ทุกชิ้นเลื่อนตามช่องรางของฐานพร้อมกัน 7.2 ซม. แบบเดียวกับหัวจับดอกสว่าน</li>
+    <li><b>วงเฟือง (หมุน):</b> วงเฟือง 90 ฟัน รัศมี 15 ซม. อยู่ใต้ฐาน ใต้ชิ้นแต่ละชิ้นมีเฟืองเล็ก 12 ฟัน รัศมี 2 ซม. เฟืองเล็กจะขบกับวงเฟืองเฉพาะตอนกางสุด เมื่อโยกวงเฟือง 16° ทุกชิ้นหมุน 16° × 90/12 = 120° พร้อมกัน</li>
+    <li><b>เลือกจำนวนฟันให้ขบลงพอดีทุกรอบ:</b> หมุน 120° คือ 4 ฟันของเฟืองเล็ก ส่วน 90 ฟันหารด้วย 6 ลงตัว เฟืองเล็กทั้ง 6 อันที่วางห่างกันทุก 60° จึงเจอฟันในตำแหน่งเดียวกัน และเลื่อนกลับเข้ามาขบได้อีกในรอบที่ 2</li>
+    <li><b>ลำดับการเล่น:</b> กาง → หมุน → หุบ ได้มุมแดง 60° × 6 = 360° (วงที่ 1) แล้วทำซ้ำ กาง → หมุน → หุบ ได้มุมฟ้า 60° × 6 = 360° (วงที่ 2) รวม 720°</li>
+  </ol>
+  <p class="warn" style="margin:10px 0 0">ตัวเลขแบบ E มาจากการคำนวณ ยังไม่ได้ทำต้นแบบ ตอนเฟืองเล็กหลุดจากวงเฟือง (ระหว่างเลื่อนเข้าออก) ชิ้นอาจหมุนเองได้ ต้องมีตัวกันหมุน เช่น ลูกปืนกดหรือแม่เหล็กเล็กๆ ตรงแกน ซึ่งยังไม่ได้ออกแบบ</p>
+</div>
+
+<h2>ส่วนที่ต่างจากกลไกจัตุรัสเดิม</h2>
+<div class="card">
+  <ol style="margin:0;padding-left:1.2em">
+    <li><b>ชิ้นมุม:</b> เสี้ยววงกลม 120° รัศมีเท่าความยาวด้าน ปลายโค้งแตะมุมข้างเคียงและผ่านจุดศูนย์กลางพอดี</li>
+    <li><b>ถาดละ 3 ชิ้น 3 ชั้น:</b> ความสูง 3 · 6 · 9 มม. จากถาด หางของชิ้นหนึ่งจึงลอดเหนือหรือใต้ชิ้นอื่นได้</li>
+    <li><b>ข้อเหวี่ยงถาดละอัน:</b> ถาดบนมีแกนพันใต้ถาดของตัวเอง จึงยกหรือเลื่อนออกได้โดยเชือกไม่ขาดจากกัน แต่ต้องหมุนทีละถาด</li>
+    <li><b>หมุดอยู่ไกลกว่ารัศมีชิ้นมุม:</b> หมุดห่างยอดมุม 11 ซม. รางเปิดช่องกลาง เพื่อไม่ให้หมุดชนชิ้นมุมชั้นล่างเมื่อถึงจุดกลาง</li>
+  </ol>
+  <p class="warn" style="margin:10px 0 0">ไฟล์จัตุรัสเดิมวางหมุดห่างยอดเพียง 1.5 ซม. เมื่อเลื่อนเข้ากลาง หมุดของชิ้นชั้นบนจะอยู่ในแนวเดียวกับชิ้นชั้นล่าง ถ้าทำจริงตามแบบเดิมต้องตรวจจุดนี้ก่อน</p>
+</div>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+  const view=document.getElementById('view');
+  if(!window.THREE){view.innerHTML='<p style="padding:20px">โหลดภาพ 3 มิติไม่ได้ กรุณาต่ออินเทอร์เน็ตแล้วเปิดใหม่ครับ</p>';return}
+
+  /* ค่าทุกตัวเป็นเซนติเมตร · a = ความยาวด้านหกเหลี่ยม = รัศมีวงกลม */
+  const a=10, PIN=11, STOP=16.5, RAIL0=12, RAIL1=16, POST=21.7, TAB=23, PLATE=18, LEG=5, GAP=5;
+  const Y1=LEG, Y2=LEG+GAP, LIFT=12, SLIDE=-26, PLACE=-37;
+  const rad=d=>d*Math.PI/180;
+
+  const scene=new THREE.Scene();scene.background=new THREE.Color(0xdfe7ec);
+  const cam=new THREE.PerspectiveCamera(40,1,0.5,800);
+  const ren=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});ren.setPixelRatio(Math.min(devicePixelRatio,2));
+  view.appendChild(ren.domElement);
+  scene.add(new THREE.AmbientLight(0xffffff,.5));
+  const sun=new THREE.DirectionalLight(0xffffff,.5);sun.position.set(30,80,40);scene.add(sun);
+  const fill=new THREE.DirectionalLight(0xffffff,.2);fill.position.set(-30,-20,-30);scene.add(fill);
+
+  const mat=(c,o={})=>new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:.6},o));
+  const box=(w,h,d,m)=>new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);
+  const cyl=(r,h,m,s=16)=>new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,s),m);
+  const line=(pts,c)=>{const g=new THREE.BufferGeometry().setFromPoints(pts.map(p=>new THREE.Vector3(...p)));return new THREE.Line(g,new THREE.LineBasicMaterial({color:c}))};
+  const setLine=(l,pts)=>{const p=l.geometry.attributes.position;pts.forEach((q,i)=>p.setXYZ(i,...q));p.needsUpdate=true};
+  const dark=mat(0x555555),wood=mat(0x8a6d4b),wall=mat(0xa88a66),black=mat(0x222222);
+
+  /* เส้นหนาพิมพ์บนถาด */
+  function ribbon(g,x1,z1,x2,z2,w,c){
+    const L=Math.hypot(x2-x1,z2-z1),m=box(L,.01,w,new THREE.MeshBasicMaterial({color:c}));
+    m.position.set((x1+x2)/2,.012,(z1+z2)/2);m.rotation.y=-Math.atan2(z2-z1,x2-x1);g.add(m);
+  }
+
+  /* ถาด 1 ใบ: ชิ้นมุม 3 ชิ้น ราง หมุด เชือก หนังยาง แกนพัน ข้อเหวี่ยง */
+  function tray(thetas,cols,crankDir,opts){
+    const g=new THREE.Group();scene.add(g);
+    const pm=opts.clear?mat(0xbfd8e6,{transparent:true,opacity:.22,depthWrite:false,side:THREE.DoubleSide}):mat(0xf3efe4);
+    const plate=new THREE.Mesh(new THREE.CylinderGeometry(PLATE,PLATE,.3,6),pm);
+    plate.rotation.y=rad(30);plate.position.y=-.15;g.add(plate);
+
+    /* ลายพิมพ์ */
+    if(opts.hexPrint){
+      for(let i=0;i<6;i++){
+        const t0=rad(i*60),t1=rad(i*60+60);
+        ribbon(g,a*Math.cos(t0),a*Math.sin(t0),a*Math.cos(t1),a*Math.sin(t1),.16,0x222222);
+      }
+    }
+    const ring=new THREE.Mesh(new THREE.RingGeometry(a-.05,a+.05,96),new THREE.MeshBasicMaterial({color:cols[0],side:THREE.DoubleSide}));
+    ring.rotation.x=-Math.PI/2;ring.position.y=.013;g.add(ring);
+    const hole=new THREE.Mesh(new THREE.CircleGeometry(.45,24),new THREE.MeshBasicMaterial({color:0x111111}));
+    hole.rotation.x=-Math.PI/2;hole.position.y=.014;g.add(hole);
+
+    /* ขา */
+    const legs=new THREE.Group();g.add(legs);
+    [30,150,270].forEach(d=>{const l=box(.8,LEG-.3,.8,mat(0xc9b99a));l.position.set(15*Math.cos(rad(d)),-(LEG+.3)/2,15*Math.sin(rad(d)));legs.add(l)});
+
+    /* แกนพันและข้อเหวี่ยง อยู่ใต้ถาด */
+    const SPZ=13,SPY=-1.5;
+    const spool=new THREE.Group();spool.position.set(0,SPY,SPZ);g.add(spool);
+    const sc=cyl(1,3,dark,32);sc.rotation.z=Math.PI/2;spool.add(sc);
+    const mark=box(3.05,.25,.4,mat(0xffffff));mark.position.y=.9;spool.add(mark);
+    [-2,2].forEach(x=>{const b=box(.5,1.6,1.4,wood);b.position.set(x,-.95,SPZ);g.add(b)});
+    const shaft=cyl(.25,19,mat(0x777777));shaft.rotation.z=Math.PI/2;shaft.position.set(crankDir*9.5,SPY,SPZ);g.add(shaft);
+    const crank=new THREE.Group();crank.position.set(crankDir*19.3,SPY,SPZ);g.add(crank);
+    const disc=cyl(1.8,.5,mat(0x333333),32);disc.rotation.z=Math.PI/2;crank.add(disc);
+    const handle=cyl(.3,1.8,black);handle.rotation.z=Math.PI/2;handle.position.set(crankDir*1.1,1.3,0);crank.add(handle);
+
+    /* ชิ้นมุม */
+    const parts=thetas.map((deg,i)=>{
+      const th=rad(deg),u=new THREE.Vector3(Math.cos(th),0,Math.sin(th)),yb=.3*(i+1),ang=-th;
+      const shp=new THREE.Shape();shp.moveTo(0,0);
+      for(let k=0;k<=48;k++){const d=th+Math.PI-rad(60)+k/48*rad(120);shp.lineTo(a*Math.cos(d),-a*Math.sin(d))}
+      shp.lineTo(0,0);
+      const geo=new THREE.ExtrudeGeometry(shp,{depth:.2,bevelEnabled:false});geo.rotateX(-Math.PI/2);
+      const wedge=new THREE.Mesh(geo,mat(cols[i],{transparent:true,opacity:.6,depthWrite:false,side:THREE.DoubleSide}));g.add(wedge);
+      /* ป้ายมุม 120° ที่ยอด ทึบกว่าชิ้น เพื่อให้เห็นครบ 6 มุมแม้ชิ้นซ้อนกัน */
+      const ms=new THREE.Shape();ms.moveTo(0,0);
+      for(let k=0;k<=24;k++){const d=th+Math.PI-rad(60)+k/24*rad(120);ms.lineTo(3*Math.cos(d),-3*Math.sin(d))}
+      ms.lineTo(0,0);
+      const mg=new THREE.ShapeGeometry(ms);mg.rotateX(-Math.PI/2);
+      const mk=new THREE.Mesh(mg,new THREE.MeshBasicMaterial({color:cols[i],side:THREE.DoubleSide,depthTest:false,transparent:true}));mk.renderOrder=5;wedge.add(mk);mk.position.y=.22;
+      const tail=box(19,.2,1.6,mat(cols[i]));tail.rotation.y=ang;g.add(tail);
+      const stop=box(1,.4,2.6,mat(0x444444));stop.rotation.y=ang;g.add(stop);
+      const pin=cyl(.15,yb,black,12);g.add(pin);
+      /* ราง: ขอบรองซ้ายขวา เปิดช่องกลางให้หมุดวิ่ง + ผนังกันบิด */
+      const rl=RAIL1-RAIL0,rm=(RAIL0+RAIL1)/2,w=new THREE.Vector3(-u.z,0,u.x);
+      [-1,1].forEach(sd=>{
+        const ledge=box(rl,yb,.6,wood);ledge.rotation.y=ang;
+        ledge.position.copy(u.clone().multiplyScalar(rm)).add(w.clone().multiplyScalar(sd*.7));ledge.position.y=yb/2;g.add(ledge);
+        const wl=box(rl,.6,.5,wall);wl.rotation.y=ang;
+        wl.position.copy(u.clone().multiplyScalar(rm)).add(w.clone().multiplyScalar(sd*1.1));wl.position.y=yb+.3;g.add(wl);
+      });
+      /* แผ่นยื่นรับเสาหยุด */
+      const tab=box(TAB-PLATE+2,.3,3,pm);tab.rotation.y=ang;tab.position.copy(u.clone().multiplyScalar((TAB+PLATE-2)/2));tab.position.y=-.15;g.add(tab);
+      const post=cyl(.25,.25,black,12);post.position.copy(u.clone().multiplyScalar(POST));post.position.y=.125;g.add(post);
+      const str=line([[0,0,0],[0,0,0],[0,0,0],[0,0,0]],0x111111);g.add(str);
+      const band=line([[0,0,0],[0,0,0]],0xc0392b);g.add(band);
+      return {u,yb,mk,wedge,tail,stop,pin,str,band,postP:u.clone().multiplyScalar(POST)};
+    });
+
+    function update(k){
+      const ar=a*(1-k);
+      parts.forEach(p=>{
+        const at=d=>p.u.clone().multiplyScalar(ar+d);
+        p.mk.visible=k<.9;
+        const ap=at(0);p.wedge.position.set(ap.x,p.yb,ap.z);
+        const tc=at(7.5);p.tail.position.set(tc.x,p.yb+.1,tc.z);
+        const sp=at(STOP);p.stop.position.set(sp.x,p.yb+.4,sp.z);
+        const pp=at(PIN);p.pin.position.set(pp.x,p.yb/2+.04,pp.z);
+        setLine(p.str,[[pp.x,.06,pp.z],[0,.06,0],[0,-.5,0],[0,-.5,SPZ]]);
+        setLine(p.band,[[pp.x,.1,pp.z],[p.postP.x,.1,p.postP.z]]);
+      });
+      const turn=k*a; // เชือกสั้นลง a ซม. บนแกนรัศมี 1 ซม.
+      spool.rotation.x=-turn;crank.rotation.x=-turn;
+      return turn/(2*Math.PI);
+    }
+    return {g,legs,update,pm};
+  }
+
+  const t1=tray([0,120,240],[0xe4572e,0xf2a541,0xc9184a],1,{hexPrint:true,clear:false});
+  const t2=tray([60,180,300],[0x2e86ab,0x6a994e,0x7b5ea7],-1,{hexPrint:true,clear:true});
+  t1.g.position.y=Y1;
+
+  /* พื้นโต๊ะ + อุปกรณ์เฉพาะแบบ */
+  const mkMat=(x0,x1,zh)=>{const m=box(x1-x0,1,2*zh,mat(0xe9e4d8));m.position.set((x0+x1)/2,-.5,0);scene.add(m);return m};
+  const mats={A:mkMat(-24,24,24),B:mkMat(-54,30,27),C:mkMat(-61,24,20)};
+
+  /* A: แกนเกลียว 3 ต้น สายพาน ที่หมุนยก */
+  const gA=new THREE.Group();scene.add(gA);
+  const rodPts=[30,150,270].map(d=>[15*Math.cos(rad(d)),15*Math.sin(rad(d))]);
+  rodPts.forEach(([x,z])=>{const r=cyl(.3,26,mat(0x888888));r.position.set(x,13,z);gA.add(r);
+    const pul=cyl(.9,.4,dark,24);pul.position.set(x,2,z);gA.add(pul)});
+  gA.add(line([...rodPts,rodPts[0]].map(([x,z])=>[x,2,z]),0x111111));
+  const liftShaft=cyl(.25,7,mat(0x777777));liftShaft.rotation.x=Math.PI/2;liftShaft.position.set(0,2,-18.5);gA.add(liftShaft);
+  const liftKnob=new THREE.Group();liftKnob.position.set(0,2,-22);gA.add(liftKnob);
+  const lk=cyl(1.8,.5,mat(0x333333),32);lk.rotation.x=Math.PI/2;liftKnob.add(lk);
+  const lh=cyl(.3,1.8,black);lh.rotation.x=Math.PI/2;lh.position.set(1.2,0,-1);liftKnob.add(lh);
+
+  /* B: รางแคร่ เสา และแผ่นแคร่ (ติดกับถาดบน) */
+  const gB=new THREE.Group();scene.add(gB);
+  [-24,24].forEach(z=>{
+    const b=box(84,1,1.2,mat(0x9a9a9a));b.position.set(-12,Y2-.8,z);gB.add(b);
+    [-52,28].forEach(x=>{const p=box(1.2,Y2-1.3,1.2,wall);p.position.set(x,(Y2-1.3)/2,z);gB.add(p)});
+  });
+  const carriage=box(48,.3,50,mat(0xbfd8e6,{transparent:true,opacity:.14,depthWrite:false}));carriage.position.y=-.16;t2.g.add(carriage);
+
+  /* D: ฐานเดียว ไม่มีถาด · มุม 1, 3, 5 วิ่งไปจุดศูนย์กลางขวา มุม 2, 4, 6 ไปจุดศูนย์กลางซ้าย
+     ชั้นความสูงและตำแหน่งหมุดได้จากการค้นหาแบบไม่ชนกัน (หมุดของชิ้นชั้นบนไม่ผ่านชิ้นชั้นล่างตลอดทาง) */
+  const gD=new THREE.Group();gD.position.y=LEG;scene.add(gD);
+  const DCOL=Array(6).fill(0x2e86ab), DMARK=0x1b4f66; // แบบ D: ทุกชิ้นสีฟ้าเดียวกัน ซ้อนกันแล้วเนียน
+  const DRANK=[0,4,1,2,3,5], DPIN=[1,16,11,1,11,16], DG=3, DRS=2*5/Math.sqrt(175), DRB=2, DSY=-3.5;
+  const dBase=box(44,.3,48,mat(0xf3efe4));dBase.position.y=-.15;gD.add(dBase);
+  for(let i=0;i<6;i++){const t0=rad(i*60),t1=rad(i*60+60);ribbon(gD,a*Math.cos(t0),a*Math.sin(t0),a*Math.cos(t1),a*Math.sin(t1),.16,0x222222)}
+  [[5,0x555555],[-5,0x555555]].forEach(([x,c])=>{
+    const r=new THREE.Mesh(new THREE.RingGeometry(a-.05,a+.05,96),new THREE.MeshBasicMaterial({color:c,side:THREE.DoubleSide}));r.rotation.x=-Math.PI/2;r.position.set(x,.013,0);gD.add(r);
+    const h=new THREE.Mesh(new THREE.CircleGeometry(.35,20),new THREE.MeshBasicMaterial({color:0x111111}));h.rotation.x=-Math.PI/2;h.position.set(x,.014,0);gD.add(h);
+    const ey=cyl(.3,.3,black,12);ey.position.set(x,-.6,0);gD.add(ey);
+  });
+  [[-20,-22],[20,-22],[-20,22],[20,22]].forEach(([x,z])=>{const l=box(.8,LEG-.3,.8,mat(0xc9b99a));l.position.set(x,-(LEG+.3)/2,z);gD.add(l)});
+  /* แกนพันขั้นบันได: ส่วนเล็กรับเชือกมุมที่วิ่ง 5 ซม. ส่วนใหญ่รับเชือกมุมที่วิ่ง 13.2 ซม. */
+  const dAxle=new THREE.Group();dAxle.position.set(0,DSY,0);gD.add(dAxle);
+  const ax=cyl(.25,48,mat(0x777777));ax.rotation.z=Math.PI/2;ax.position.x=1;dAxle.add(ax);
+  [5,-5].forEach(x=>{
+    const s=cyl(DRS,1,dark,24);s.rotation.z=Math.PI/2;s.position.x=x-1;dAxle.add(s);
+    const b=cyl(DRB,2,dark,32);b.rotation.z=Math.PI/2;b.position.x=x+.6;dAxle.add(b);
+    const m=box(2.05,.25,.4,mat(0xffffff));m.position.set(x+.6,DRB-.05,0);dAxle.add(m);
+  });
+  [-9,9,21].forEach(x=>{const b=box(.5,LEG-3.2,1.4,wood);b.position.set(x,-(LEG-3.2)/2-.3,0);gD.add(b)});
+  const dCrank=new THREE.Group();dCrank.position.set(25.3,DSY,0);gD.add(dCrank);
+  {const d=cyl(1.8,.5,mat(0x333333),32);d.rotation.z=Math.PI/2;dCrank.add(d);
+   const h=cyl(.3,1.8,black);h.rotation.z=Math.PI/2;h.position.set(1.1,1.3,0);dCrank.add(h)}
+  const dParts=[0,1,2,3,4,5].map(i=>{
+    const th=rad(i*60),V=new THREE.Vector3(a*Math.cos(th),0,a*Math.sin(th));
+    const C=new THREE.Vector3(i%2?-5:5,0,0),D=V.distanceTo(C),u=V.clone().sub(C).normalize(),ang=-Math.atan2(u.z,u.x);
+    const yb=.3*(DRANK[i]+1),pin=DPIN[i];
+    const shp=new THREE.Shape();shp.moveTo(0,0);
+    for(let k=0;k<=48;k++){const d=th+Math.PI-rad(60)+k/48*rad(120);shp.lineTo(a*Math.cos(d),-a*Math.sin(d))}
+    shp.lineTo(0,0);
+    const geo=new THREE.ExtrudeGeometry(shp,{depth:.2,bevelEnabled:false});geo.rotateX(-Math.PI/2);
+    const wedge=new THREE.Mesh(geo,mat(DCOL[i],{side:THREE.DoubleSide}));gD.add(wedge);
+    const ms=new THREE.Shape();ms.moveTo(0,0);
+    for(let k=0;k<=24;k++){const d=th+Math.PI-rad(60)+k/24*rad(120);ms.lineTo(3*Math.cos(d),-3*Math.sin(d))}
+    ms.lineTo(0,0);
+    const mg=new THREE.ShapeGeometry(ms);mg.rotateX(-Math.PI/2);
+    const mk=new THREE.Mesh(mg,new THREE.MeshBasicMaterial({color:DMARK,side:THREE.DoubleSide,depthTest:false,transparent:true}));mk.renderOrder=5;mk.position.y=.22;wedge.add(mk);
+    const L=pin+DG+3,tail=box(L,.2,1.6,mat(0x999999,{transparent:true,opacity:.25,depthWrite:false}));tail.rotation.y=ang;gD.add(tail);
+    /* ช่องรางเจาะทะลุฐาน: หมุด 2 ตัวในช่องเดียวกัน ชิ้นจึงเลื่อนตรงโดยไม่หมุน */
+    const s0=pin-.25,s1=D+pin+DG+.25,sm=C.clone().add(u.clone().multiplyScalar((s0+s1)/2));
+    const slot=box(s1-s0,.02,.5,new THREE.MeshBasicMaterial({color:0x5a4630}));slot.rotation.y=ang;slot.position.set(sm.x,.016,sm.z);gD.add(slot);
+    const pins=[0,1].map(()=>{const p=cyl(.15,yb+.7,black,12);gD.add(p);return p});
+    const postP=C.clone().add(u.clone().multiplyScalar(s1+1.2));
+    const post=cyl(.25,1,black,12);post.position.set(postP.x,-.8,postP.z);gD.add(post);
+    const str=line([[0,0,0],[0,0,0],[0,0,0]],0x111111);gD.add(str);
+    const band=line([[0,0,0],[0,0,0]],0xc0392b);gD.add(band);
+    return {C,D,u,yb,pin,wedge,mk,tail,L,pins,str,band,postP,rDrum:D>6?DRB:DRS,xDrum:C.x+(D>6?.6:-1)};
+  });
+  function updateD(k){
+    dParts.forEach(p=>{
+      const at=s=>p.C.clone().add(p.u.clone().multiplyScalar(p.D*(1-k)+s));
+      p.mk.visible=k<.9;
+      const ap=at(0);p.wedge.position.set(ap.x,p.yb,ap.z);
+      const tc=at(p.L/2-2);p.tail.position.set(tc.x,p.yb+.1,tc.z);
+      [p.pin,p.pin+DG].forEach((s,j)=>{const q=at(s);p.pins[j].position.set(q.x,(p.yb-.7)/2,q.z)});
+      const f=at(p.pin),b=at(p.pin+DG);
+      setLine(p.str,[[f.x,-.6,f.z],[p.C.x,-.6,0],[p.xDrum,DSY+p.rDrum,0]]);
+      setLine(p.band,[[b.x,-.6,b.z],[p.postP.x,-.6,p.postP.z]]);
+    });
+    const rot=k*5/DRS;dAxle.rotation.x=-rot;dCrank.rotation.x=-rot;
+    return rot/(2*Math.PI);
+  }
+
+  const ss=x=>{x=Math.min(1,Math.max(0,x));return x*x*(3-2*x)};
+
+  /* E: สามเหลี่ยมด้านเท่า 6 ชิ้น · กาง → หมุน 120° → หุบ ทำ 2 รอบ
+     ระยะกาง ER1 ได้จากเงื่อนไขหมุนไม่ชน (ระยะกึ่งกลางชิ้นข้างกัน ≥ 2 × รัศมีวงล้อม 5.77 ซม.) */
+  const ER0=a/Math.sqrt(3), ER1=13, EDR=ER1-ER0, ERP=2, ERG=15, ESC=60, EYP=-1, EYS=-2.4;
+  const ECOL=[0x6a994e,0xe4572e,0x2e86ab];
+  const gE=new THREE.Group();gE.position.y=LEG;scene.add(gE);
+  const flat=(pts,m)=>{const s=new THREE.Shape();pts.forEach(([x,z],j)=>j?s.lineTo(x,-z):s.moveTo(x,-z));const g=new THREE.ShapeGeometry(s);g.rotateX(-Math.PI/2);return new THREE.Mesh(g,m)};
+  const eBase=box(42,.3,42,mat(0xf3efe4));eBase.position.y=-.15;gE.add(eBase);
+  for(let i=0;i<6;i++){const t0=rad(i*60),t1=rad(i*60+60);ribbon(gE,a*Math.cos(t0),a*Math.sin(t0),a*Math.cos(t1),a*Math.sin(t1),.16,0x222222)}
+  [[-19,-19],[19,-19],[-19,19],[19,19]].forEach(([x,z])=>{const l=box(.8,LEG-.3,.8,mat(0xc9b99a));l.position.set(x,-(LEG+.3)/2,z);gE.add(l)});
+  /* วงเฟือง 90 ฟันใต้ฐาน + คันโยก */
+  const eRing=new THREE.Group();eRing.position.y=EYP;gE.add(eRing);
+  {const s=new THREE.Shape();s.absarc(0,0,ERG+1.3,0,Math.PI*2,false);const h=new THREE.Path();h.absarc(0,0,ERG,0,Math.PI*2,true);s.holes.push(h);
+   const g=new THREE.ExtrudeGeometry(s,{depth:.6,bevelEnabled:false,curveSegments:64});g.rotateX(-Math.PI/2);const m=new THREE.Mesh(g,mat(0xb08d57));m.position.y=-.3;eRing.add(m);
+   for(let k=0;k<90;k++){const t=rad(k*4),tt=box(.45,.6,.18,mat(0xb08d57));tt.position.set((ERG-.2)*Math.cos(t),0,(ERG-.2)*Math.sin(t));tt.rotation.y=-t;eRing.add(tt)}
+   const lv=box(7,.4,.8,mat(0xb08d57));lv.position.set((ERG+1.3+3.5)*Math.cos(rad(120)),0,(ERG+1.3+3.5)*Math.sin(rad(120)));lv.rotation.y=-rad(120);eRing.add(lv);
+   const kb=cyl(.5,2.4,black);kb.position.set(23*Math.cos(rad(120)),1,23*Math.sin(rad(120)));eRing.add(kb)}
+  [30,150,270].forEach(d=>{const c=box(1.2,1.6,1.2,wood);c.position.set(17*Math.cos(rad(d)),-.8,17*Math.sin(rad(d)));gE.add(c)});
+  /* จานร่องเฉียง: ร่องของชิ้น i อยู่ที่มุม φi − u รัศมี ER0 + EDR·u/60 (u = 0..60°) */
+  const eScroll=new THREE.Group();eScroll.position.y=EYS;gE.add(eScroll);
+  {const d=cyl(14.5,.3,mat(0x8a9aa6,{transparent:true,opacity:.85}),64);eScroll.add(d);
+   for(let i=0;i<6;i++){const f=rad(60*i+30),pts=[];for(let u=0;u<=60;u+=3){const r=ER0+EDR*u/60;pts.push([r*Math.cos(f-rad(u)),.17,r*Math.sin(f-rad(u))])}const l=line(pts,0x222222);eScroll.add(l)}
+   const lv=box(9,.4,.8,mat(0x8a9aa6));lv.position.set(19*Math.cos(rad(-40)),0,19*Math.sin(rad(-40)));lv.rotation.y=rad(40);eScroll.add(lv);
+   const kb=cyl(.5,2.4,black);kb.position.set(23*Math.cos(rad(-40)),-1,23*Math.sin(rad(-40)));eScroll.add(kb)}
+  {const ax=cyl(.5,EYP-EYS+1,mat(0x777777));ax.position.y=(EYP+EYS)/2;gE.add(ax)}
+  const eParts=[0,1,2,3,4,5].map(i=>{
+    const f=rad(60*i+30),u=new THREE.Vector3(Math.cos(f),0,Math.sin(f));
+    const s0=ER0-.4,s1=ER1+.4,sm=u.clone().multiplyScalar((s0+s1)/2);
+    const slot=box(s1-s0,.02,.7,new THREE.MeshBasicMaterial({color:0x5a4630}));slot.rotation.y=-f;slot.position.set(sm.x,.016,sm.z);gE.add(slot);
+    const g=new THREE.Group();gE.add(g);
+    const V=[180,-60,60].map(d=>[ER0*Math.cos(f+rad(d)),ER0*Math.sin(f+rad(d))]);  // เขียว · แดง · ฟ้า
+    const sh=new THREE.Shape();V.forEach(([x,z],j)=>j?sh.lineTo(x,-z):sh.moveTo(x,-z));
+    const bg=new THREE.ExtrudeGeometry(sh,{depth:.5,bevelEnabled:false});bg.rotateX(-Math.PI/2);
+    const body=new THREE.Mesh(bg,mat(0xfaf7ee));body.position.y=.2;g.add(body);
+    const ol=line([...V,V[0]].map(([x,z])=>[x,.71,z]),0x333333);g.add(ol);
+    V.forEach(([x,z],j)=>{const c=Math.atan2(-z,-x),pts=[[x,z]];for(let k=0;k<=16;k++){const t=c-rad(30)+rad(60)*k/16;pts.push([x+2.6*Math.cos(t),z+2.6*Math.sin(t)])}
+      const m=flat(pts,new THREE.MeshBasicMaterial({color:ECOL[j],side:THREE.DoubleSide}));m.position.y=.72;g.add(m)});
+    const cap=cyl(.45,.4,black,16);cap.position.y=.9;g.add(cap);
+    const shaft=cyl(.25,3.3,mat(0x777777));shaft.position.y=.6-1.65-.05;g.add(shaft);
+    const pin=new THREE.Group();pin.position.y=EYP;g.add(pin);
+    pin.add(cyl(ERP,.6,mat(0x333333),24));
+    for(let k=0;k<12;k++){const t=rad(k*30),tt=box(.5,.6,.35,mat(0x333333));tt.position.set((ERP+.15)*Math.cos(t),0,(ERP+.15)*Math.sin(t));tt.rotation.y=-t;pin.add(tt)}
+    const pm=box(1.6,.62,.3,mat(0xffffff));pm.position.x=.9;pin.add(pm);
+    return {f,g};
+  });
+  function stateE(e){const s=Math.min(6,e*6),i=Math.min(5,Math.floor(s)),k=ss(s-i);
+    const r=i%3===0?ER0+EDR*k:i%3===1?ER1:ER1-EDR*k;
+    const psi=i===0?0:i===1?-120*k:i<4?-120:i===4?-120-120*k:-240;
+    return {i,r,psi}}
+  function updateE(st){
+    eParts.forEach(p=>{p.g.position.set(st.r*Math.cos(p.f),0,st.r*Math.sin(p.f));p.g.rotation.y=-rad(st.psi)});
+    eRing.rotation.y=-rad(st.psi*12/90);
+    eScroll.rotation.y=-rad(ESC*(st.r-ER0)/EDR);
+  }
+  let mode='E',e=0,dir=0;
+
+  const CAPS={
+    A:'ถาดบนขึ้นตามแกนเกลียว 3 ต้นพร้อมกัน วงกลมทั้งสองลอยห่างกันในแนวดิ่ง ควรดูมุมมองด้านข้าง',
+    B:'ถาดบนอยู่บนแคร่ ดันแคร่ไปตามราง 2 เส้น วงกลมวงที่ 2 เลื่อนออกมาวางเคียงวงที่ 1',
+    C:'ยกถาดบนขึ้นพ้นชั้นล่าง ย้ายไปวางบนโต๊ะข้างๆ ได้วงกลม 2 วงระดับเดียวกัน'
+  };
+
+  function place(){
+    const isD=mode==='D',isE=mode==='E';
+    t1.g.visible=t2.g.visible=!(isD||isE);gD.visible=isD;gE.visible=isE;
+    document.getElementById('t').value=Math.round(e*1000);
+    document.querySelectorAll('#modes button').forEach(b=>b.classList.toggle('on',b.dataset.m===mode));
+    document.getElementById('legD').hidden=!isD;document.getElementById('legABC').hidden=isD||isE;document.getElementById('legE').hidden=!isE;
+    if(isE){
+      const st=stateE(e);updateE(st);
+      gA.visible=gB.visible=false;Object.keys(mats).forEach(m=>mats[m].visible=false);
+      tx=0;setCam();
+      const mid=e<.25?['เขียว','มุมที่จุดศูนย์กลาง']:e<.75?['แดง','วงที่ 1']:['ฟ้า','วงที่ 2'];
+      const atC=Math.abs(st.r-ER0)<.01&&Math.abs(st.psi%120)<.01;
+      document.getElementById('readout').innerHTML=
+        `จานร่องเฉียง: กางออก ${(st.r-ER0).toFixed(1)} / ${EDR.toFixed(1)} ซม.<br>`+
+        `วงเฟือง: โยกไป ${(-st.psi*12/90).toFixed(1)}° · ชิ้นหมุน ${(-st.psi).toFixed(0)}°<br>`+
+        (atC?`ตรงกลาง: มุม${mid[0]} 60° × 6 = 360° (${mid[1]})`:'ตรงกลาง: ระหว่างเปลี่ยนมุม');
+      const CE=['ขั้นที่ 1: โยกจานร่องเฉียงใต้ฐาน ทุกชิ้นกางออกจากกลางพร้อมกัน 7.2 ซม. จนมีที่พอให้หมุนได้โดยไม่ชนกัน',
+        'ขั้นที่ 2: เฟืองเล็กใต้ทุกชิ้นขบกับวงเฟืองแล้ว โยกวงเฟือง 16° ทุกชิ้นหมุนพร้อมกัน 120° มุมแดงหันเข้าหากลาง',
+        'ขั้นที่ 3: โยกจานร่องเฉียงกลับ ทุกชิ้นหุบเข้า มุมแดงทั้ง 6 มุมมาชนกันที่จุดกลาง',
+        'ขั้นที่ 4: กางออกอีกครั้ง',
+        'ขั้นที่ 5: โยกวงเฟืองต่ออีก 16° ทุกชิ้นหมุนอีก 120° มุมฟ้าหันเข้าหากลาง',
+        'ขั้นที่ 6: หุบเข้า มุมฟ้าทั้ง 6 มุมมาชนกันที่จุดกลาง'];
+      document.getElementById('cap').textContent=
+        e<.005?'ตอนเริ่ม: สามเหลี่ยมด้านเท่า 6 ชิ้นต่อกันเป็นหกเหลี่ยม มุมเขียวอยู่ตรงกลาง ยอดหกเหลี่ยมแต่ละยอดคือมุมแดง 60° + มุมฟ้า 60° = 120°':
+        e>.995?'จบ: วงที่ 2 = มุมฟ้า 60° × 6 = 360° · รวม 2 วง 360° + 360° = 720° = ผลรวมมุมภายในหกเหลี่ยม':
+        Math.abs(e-.5)<.005?'วงที่ 1 ครบ: มุมแดง 60° × 6 = 360° (มุมแดงคือครึ่งหนึ่งของมุมภายในทุกมุม)':CE[st.i];
+      return;
+    }
+    if(isD){
+      const k=ss(e),turns=updateD(k);
+      gA.visible=gB.visible=false;Object.keys(mats).forEach(m=>mats[m].visible=false);
+      tx=0;setCam();
+      document.getElementById('readout').innerHTML=
+        `ข้อเหวี่ยงอันเดียว: หมุน ${turns.toFixed(2)} รอบ<br>`+
+        `มุม 1, 4: เลื่อน ${(5*k).toFixed(1)} / 5 ซม.<br>`+
+        `มุม 2, 3, 5, 6: เลื่อน ${(13.23*k).toFixed(1)} / 13.2 ซม.`;
+      document.getElementById('cap').textContent=
+        e<.005?'ตอนเริ่ม: ชิ้นมุม 6 ชิ้นอยู่บนฐานเดียวกัน คนละชั้นความสูง (3–18 มม.) ไม่มีถาด':
+        e<.995?'หมุนข้อเหวี่ยงอันเดียว มุม 1, 3, 5 วิ่งเข้าจุดศูนย์กลางด้านขวา มุม 2, 4, 6 วิ่งเข้าจุดศูนย์กลางด้านซ้าย ระยะวิ่งไม่เท่ากัน แต่แกนพันมี 2 ขนาด ทุกชิ้นจึงถึงพร้อมกัน':
+        'จบ: มองจากบนเห็นวงกลม 2 วงซ้อนกันบางส่วน 360° + 360° = 720° · ชิ้นสีฟ้าเดียวกันจึงต่อกันเนียนเป็นรูปเดียว';
+      return;
+    }
+    const k1=ss(e*3),k2=ss(e*3-1),k3=ss(e*3-2);
+    const r1=t1.update(k1),r2=t2.update(k2);
+    let x=0,y=Y2;
+    if(mode==='A')y=Y2+LIFT*k3;
+    if(mode==='B')x=SLIDE*k3;
+    if(mode==='C'){
+      x=PLACE*ss((k3-.2)/.6);
+      y=k3<.2?Y2+8*(k3/.2):k3<.8?Y2+8:Y2+8-(Y2+8-Y1)*((k3-.8)/.2);
+    }
+    t2.g.position.set(x,y,0);
+    tx=TARGET[mode][0]*k3;setCam();
+    t2.legs.visible=mode==='C';
+    carriage.visible=mode==='B';
+    gA.visible=mode==='A';gB.visible=mode==='B';
+    Object.keys(mats).forEach(m=>mats[m].visible=m===mode);
+    liftKnob.rotation.z=-k3*LIFT*2;
+
+    const sep=mode==='A'?`ถาดบนยกสูงขึ้น ${(LIFT*k3).toFixed(1)} ซม.`:`ถาดบนย้ายไป ${Math.abs(x).toFixed(1)} ซม.`;
+    document.getElementById('readout').innerHTML=
+      `วงที่ 1: หมุน ${r1.toFixed(2)} รอบ · เลื่อน ${(a*k1).toFixed(1)} / ${a} ซม.<br>`+
+      `วงที่ 2: หมุน ${r2.toFixed(2)} รอบ · เลื่อน ${(a*k2).toFixed(1)} / ${a} ซม.<br>${sep}`;
+    let c;
+    if(e<.005)c='ตอนเริ่ม: ชิ้นมุม 6 ชิ้นอยู่ที่มุมหกเหลี่ยม แบ่งเป็น 2 ถาด ถาดละ 3 มุมเว้นมุม';
+    else if(e<1/3)c='ขั้นที่ 1: หมุนข้อเหวี่ยงถาดล่าง มุม 1, 3, 5 ถูกดึงเข้าหาจุดกลางพร้อมกัน';
+    else if(e<=1/3+.005)c='วงที่ 1 ครบแล้ว: 120° × 3 = 360°';
+    else if(e<2/3)c='ขั้นที่ 2: หมุนข้อเหวี่ยงถาดบน มุม 2, 4, 6 เข้าหาจุดกลางของถาดบน';
+    else if(e<=2/3+.005)c='วงที่ 2 ครบแล้ว แต่ซ้อนอยู่บนวงที่ 1 จากด้านบนจึงเห็นเหมือนมีวงเดียว';
+    else if(e<.995)c='ขั้นที่ 3: '+CAPS[mode];
+    else c='จบ: วงกลม 2 วง = 360° + 360° = 720° = ผลรวมมุมภายในหกเหลี่ยม'+(mode==='A'?' · จากด้านบนยังเห็นซ้อนกัน ต้องดูมุมด้านข้าง':'');
+    document.getElementById('cap').textContent=c;
+    document.getElementById('t').value=Math.round(e*1000);
+    document.querySelectorAll('#modes button').forEach(b=>b.classList.toggle('on',b.dataset.m===mode));
+  }
+
+  /* กล้อง */
+  let th=.6,ph=.95,dist=90,tx=0;
+  const views={iso:[.6,.95,90],top:[0,.01,85],side:[0,1.5,85],under:[.6,2.2,85]};
+  const TARGET={A:[0,8],B:[-13,6],C:[-18,6],D:[0,3],E:[0,3]};
+  function setCam(){
+    const ty=TARGET[mode][1],d=dist*Math.max(1,1.4/(cam.aspect||1.4));
+    cam.position.set(tx+d*Math.sin(ph)*Math.sin(th),ty+d*Math.cos(ph),d*Math.sin(ph)*Math.cos(th));
+    cam.lookAt(tx,ty,0);
+  }
+  let drag=null,pinch=0;const pts=new Map();
+  view.addEventListener('pointerdown',ev=>{view.setPointerCapture(ev.pointerId);pts.set(ev.pointerId,[ev.clientX,ev.clientY]);drag=[ev.clientX,ev.clientY]});
+  view.addEventListener('pointermove',ev=>{
+    if(!pts.has(ev.pointerId))return;
+    pts.set(ev.pointerId,[ev.clientX,ev.clientY]);
+    if(pts.size===2){const [p,q]=[...pts.values()],d=Math.hypot(p[0]-q[0],p[1]-q[1]);if(pinch)dist=Math.min(260,Math.max(25,dist*pinch/d));pinch=d;setCam();return}
+    th-=(ev.clientX-drag[0])*.008;ph=Math.min(2.6,Math.max(.01,ph-(ev.clientY-drag[1])*.008));drag=[ev.clientX,ev.clientY];setCam();
+  });
+  const up=ev=>{pts.delete(ev.pointerId);if(pts.size<2)pinch=0};
+  view.addEventListener('pointerup',up);view.addEventListener('pointercancel',up);
+  view.addEventListener('wheel',ev=>{ev.preventDefault();dist=Math.min(260,Math.max(25,dist*(1+ev.deltaY*.001)));setCam()},{passive:false});
+  document.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{[th,ph,dist]=views[b.dataset.v];setCam()});
+  document.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{mode=b.dataset.m;setCam();place()});
+  document.getElementById('go').onclick=()=>{if(e>=1)e=0;dir=1};
+  document.getElementById('back').onclick=()=>{if(e<=0)e=1;dir=-1};
+  document.getElementById('t').oninput=ev=>{dir=0;e=ev.target.value/1000;place()};
+
+  function resize(){const w=view.clientWidth,h=view.clientHeight;ren.setSize(w,h);cam.aspect=w/h;cam.updateProjectionMatrix();setCam()}
+  addEventListener('resize',resize);
+  let prev=performance.now();
+  function loop(now){
+    const dt=(now-prev)/1000;prev=now;
+    if(dir){e+=dir*dt/(mode==='E'?24:15);if(e>=1){e=1;dir=0}if(e<=0){e=0;dir=0}place()}
+    ren.render(scene,cam);requestAnimationFrame(loop);
+  }
+  /* เปิดด้วย ?m=A&e=1&v=top เพื่อเข้าสถานะที่ต้องการโดยตรง */
+  const q=new URLSearchParams(location.search);
+  if(q.get('m'))mode=q.get('m');
+  if(q.get('e'))e=+q.get('e');
+  if(q.get('v'))[th,ph,dist]=views[q.get('v')];
+  resize();place();requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
